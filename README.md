@@ -13,10 +13,14 @@ It transforms unstructured customer emails into structured, actionable feedback 
 
 
 ## 🛠️ Tech Stack
-- n8n – Workflow automation
+n8n – Workflow automation
+
 LLM (Groq - LLaMA 3.3 70B) – Email classification & response generation
+
 Gmail API – Email monitoring & replies
+
 Google Drive API – Screenshot storage
+
 Google Sheets API – Structured complaint logging
 
 ## ⚙️ Workflow Process
