@@ -1,0 +1,593 @@
+{
+  "name": "Email Responder",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {},
+        "options": {
+          "dataPropertyAttachmentsPrefixName": "attachment_",
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -672,
+        -768
+      ],
+      "id": "b35e97a5-5beb-4d3b-9622-40036ac53044",
+      "name": "Gmail Trigger",
+      "alwaysOutputData": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "qrVFxKVIKcByfwcz",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Your are a software product email responder, respond, analyze this customer email and extract the following information:\n\nEmail Subject: {{ $('Gmail Trigger').item.json.subject }}\nEmail Body: {{ $('Gmail Trigger').item.json.text }}\nSender Name: {{ $('Gmail Trigger').item.json.from.value[0].name }}\nSender Email: {{ $('Gmail Trigger').item.json.from.value[0].address }}\nEmail Date: {{ $('Gmail Trigger').item.json.headers.date }}\n\nTask:\nAnalyze: Determine if this is a complaint about content accuracy or a software product error or application.\nExtract: sender_name, sender_email, email_body, and email_date.\nDraft Reply: Generate a response using exactly the format below:\nReply Format: \nDear [User Name]<br><br>\n[body text]<br><br>\nRegards,<br>\nCustomer Services<br>\nNinesol Technologies\n\nOutput Constraint: Output ONLY a valid JSON object with no additional text.\n{\"is_complaint\": boolean, \n\"is_software_product_complaint\": boolean,\n\"sender_name\": \"string\", \"sender_email\": \"string\", \"Email_body\": \"string\", \n\"email_date\": \"string\",\n\"reply_text\": \"string with the complete professional reply message\"}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are an email analysis and responding assistant for Ninesol Technologies. Your job is to analyze software product customer support emails to classify that it is a complaints or non complaints, and respond only to the emails that contain software products related issues  and generate professional, concise and empathetic replies for issues."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -272,
+        -496
+      ],
+      "id": "2c8ce891-f12d-4e08-891a-a3831b5b5308",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -272,
+        -240
+      ],
+      "id": "418d7abc-eae4-43ae-a43e-fca74731625e",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "5RyDPe6w9zD9XVm9",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"is_complaint\": \"boolean\", \n\"is_software_product_complaint\": \"boolean\",\n\"sender_name\": \"string\", \"sender_email\": \"string\", \"Email_body\": \"string\", \n\"email_date\": \"string\",\n\"reply_text\": \"string with the complete professional reply message\"}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -128,
+        -240
+      ],
+      "id": "76e88a8d-061e-4b6b-bf4e-eccfa86b9335",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d90fc98f-63c1-4210-a51d-5d60fc971b5a",
+              "leftValue": "={{ $json.output.is_complaint }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "31d2f067-e636-481e-8f21-c32c2a1113b8",
+              "leftValue": "={{ $json.output.is_software_product_complaint }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        64,
+        -576
+      ],
+      "id": "01932692-46c7-4d08-aec4-c94d32df4a15",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $('Gmail Trigger').item.json.threadId }}",
+        "message": "={{ $('Basic LLM Chain').item.json.output.reply_text }}",
+        "options": {
+          "senderName": "Ninesol Technologies"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        256,
+        -576
+      ],
+      "id": "2ac1ec69-9423-45c7-b4cc-2f8f54ebd18e",
+      "name": "Reply to a message",
+      "webhookId": "b35bed2c-3deb-48dc-9dc4-9c02c98e19e4",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "qrVFxKVIKcByfwcz",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "={{ $('Split Out').item.binary.values().first()}}",
+        "name": "={{ $('Split Out').item.binary.values().first().fileName}}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1VIEmfWe2QCLZMg8cLaESmN-eB6Bv6Se7",
+          "mode": "list",
+          "cachedResultName": "complaint_images",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1VIEmfWe2QCLZMg8cLaESmN-eB6Bv6Se7"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        624,
+        -720
+      ],
+      "id": "41b642d8-c09a-4768-ab64-514ca1209f0b",
+      "name": "Upload file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "mwUmgWI99ectz0eA",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "11fsQQuQ1Vf8idzN2JDhF3QYtJj5JVeR_zm4-1oEIIJU",
+          "mode": "list",
+          "cachedResultName": "complaint_sheet_n8n",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/11fsQQuQ1Vf8idzN2JDhF3QYtJj5JVeR_zm4-1oEIIJU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1325765488,
+          "mode": "list",
+          "cachedResultName": "Sender",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/11fsQQuQ1Vf8idzN2JDhF3QYtJj5JVeR_zm4-1oEIIJU/edit#gid=1325765488"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $('Gmail Trigger').item.json.from.value[0].name }}",
+            "Email": "={{ $('Gmail Trigger').item.json.from.value[0].address }}",
+            "Email Content": "={{ $('Gmail Trigger').item.json.text }}",
+            "Date": "={{ $('Gmail Trigger').item.json.headers.date }}",
+            "Picture": "=={{ $json.formula.map(id => `IMAGE(\"https://drive.google.com/uc?export=view&id=${id}\")`).join(\" & \") }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email Content",
+              "displayName": "Email Content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Picture",
+              "displayName": "Picture",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1024,
+        -720
+      ],
+      "id": "c78ef65f-8a20-4351-b16c-9118491c3c0c",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "X2GdU2suh0VmBX2T",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6074fc9a-a68e-4452-a410-c807dc9efbe0",
+              "leftValue": "={{ Object.keys($(\"Split Out\").item.binary || {}).length}}",
+              "rightValue": "=0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        -576
+      ],
+      "id": "8cef8041-bc9e-482c-abc2-1cf401b47731",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": " $binary",
+        "include": "allOtherFields",
+        "options": {
+          "disableDotNotation": false,
+          "destinationFieldName": "data",
+          "includeBinary": true
+        }
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        -624
+      ],
+      "id": "0da4ad70-cf41-4563-b781-4a3b7facdabb",
+      "name": "Split Out",
+      "alwaysOutputData": true,
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "11fsQQuQ1Vf8idzN2JDhF3QYtJj5JVeR_zm4-1oEIIJU",
+          "mode": "list",
+          "cachedResultName": "complaint_sheet_n8n",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/11fsQQuQ1Vf8idzN2JDhF3QYtJj5JVeR_zm4-1oEIIJU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1325765488,
+          "mode": "list",
+          "cachedResultName": "Sender",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/11fsQQuQ1Vf8idzN2JDhF3QYtJj5JVeR_zm4-1oEIIJU/edit#gid=1325765488"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $('Basic LLM Chain').item.json.output.sender_name }}",
+            "Email": "={{ $('Basic LLM Chain').item.json.output.sender_email }}",
+            "Email Content": "={{ $('Basic LLM Chain').item.json.output.Email_body }}",
+            "Picture": "=No Attachment ",
+            "Date": "={{ $('Basic LLM Chain').item.json.output.email_date }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email Content",
+              "displayName": "Email Content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Picture",
+              "displayName": "Picture",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        640,
+        -432
+      ],
+      "id": "e51198e8-e1f5-43e2-9eab-311b438671dd",
+      "name": "Append row in sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "X2GdU2suh0VmBX2T",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "id",
+              "renameField": true,
+              "outputFieldName": "formula"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        848,
+        -720
+      ],
+      "id": "10f7237b-e5e1-4f89-be2a-75f6a66783e0",
+      "name": "Aggregate"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Reply to a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply to a message": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Upload file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "5eb6b93d-7502-4980-85d6-a1e18945f661",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cbe8f322db361f48e3c4f82e24c05b9226576ad42c77c4a8f0601e1b64e1f824"
+  },
+  "id": "8z2ZjLR3sRe0xh2n5GOu7",
+  "tags": []
+}
